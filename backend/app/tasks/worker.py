@@ -65,5 +65,8 @@ def process_transcription(self, video_filename: str, job_id: str):
         return {"status": "completed", "segments_count": len(result)}
 
     except Exception as exc:
-        update_job_status(job_id, "failed", {"error": str(exc)})
+        update_job_status(job_id, "failed", error=str(exc))
+        # No reintentar errores de código (TypeError, ValueError, etc.)
+        if isinstance(exc, (TypeError, ValueError, RuntimeError)):
+            raise
         raise self.retry(exc=exc, countdown=60)
