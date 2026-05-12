@@ -1,26 +1,59 @@
-version: "3.9"
-
 services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-
+  # PostgreSQL para la aplicación whisper
   postgres:
     image: postgres:16-alpine
+    container_name: whisper-postgres
     environment:
       POSTGRES_USER: transcriber
       POSTGRES_PASSWORD: transcriber
       POSTGRES_DB: transcriber
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - pg_whisper:/var/lib/postgresql/data
     restart: unless-stopped
 
+  # API FastAPI
+  api:
+    build: ./backend
+    container_name: whisper-api
+    environment:
+      REDIS_URL: redis://host.docker.internal:6379/0
+      DATABASE_URL: postgresql://transcriber:transcriber@postgres:5432/transcriber
+      MODEL_SIZE: small
+      MODEL_DEVICE: cpu
+      MODEL_COMPUTE_TYPE: int8
+      HF_TOKEN: ${HF_TOKEN:-}
+    ports:
+      - "8000:8000"
+    volumes:
+      - whisper_data:/data
+      - whisper_models:/root/.cache/huggingface
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  # Celery worker
+  worker:
+    build: ./backend
+    container_name: whisper-worker
+    environment:
+      REDIS_URL: redis://host.docker.internal:6379/0
+      DATABASE_URL: postgresql://transcriber:transcriber@postgres:5432/transcriber
+      MODEL_SIZE: small
+      MODEL_DEVICE: cpu
+      MODEL_COMPUTE_TYPE: int8
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - whisper_data:/data
+      - whisper_models:/root/.cache/huggingface
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    command: celery -A app.tasks.worker worker --loglevel=info --concurrency=1
+
 volumes:
-  redis_data:
-  pg_data:
+  pg_whisper:
+  whisper_data:
+  whisper_models:

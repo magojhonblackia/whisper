@@ -1,15 +1,16 @@
 """
-Modelo simple de jobs en SQLite (sin dependencia externa mientras no haya PostgreSQL).
-Para producción se migra a PostgreSQL + SQLAlchemy.
+Modelo de jobs con SQLAlchemy + PostgreSQL.
 """
 import json
-import sqlite3
 from datetime import datetime, timezone
 from enum import Enum
-from pathlib import Path
-from dataclasses import dataclass, asdict
+from sqlalchemy import create_engine, Column, String, Text, text as sa_text
+from sqlalchemy.orm import Session, declarative_base
+from app.config import settings
 
-DB_PATH = Path(__file__).parent / "jobs.db"
+Base = declarative_base()
+
+engine = create_engine(settings.database_url)
 
 
 class JobStatus(str, Enum):
@@ -22,89 +23,101 @@ class JobStatus(str, Enum):
     failed = "failed"
 
 
-@dataclass
-class Job:
-    id: str
-    original_filename: str
-    status: JobStatus
-    created_at: str
-    updated_at: str
-    metadata: dict | None = None
-    error: str | None = None
+class JobModel(Base):
+    __tablename__ = "jobs"
+
+    id = Column(String, primary_key=True)
+    original_filename = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="pending")
+    created_at = Column(String, nullable=False)
+    updated_at = Column(String, nullable=False)
+    metadata = Column(Text, nullable=True)
+    error = Column(Text, nullable=True)
 
     def to_dict(self):
-        d = asdict(self)
-        d["metadata"] = json.dumps(self.metadata) if self.metadata else None
-        return d
+        meta = None
+        if self.metadata:
+            try:
+                meta = json.loads(self.metadata)
+            except (json.JSONDecodeError, TypeError):
+                meta = None
+        return {
+            "id": self.id,
+            "original_filename": self.original_filename,
+            "status": self.status,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "metadata": meta,
+            "error": self.error,
+        }
 
 
-def get_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS jobs (
-            id TEXT PRIMARY KEY,
-            original_filename TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            metadata TEXT,
-            error TEXT
-        )
-    """)
-    conn.commit()
-    return conn
+def init_db():
+    """Crea las tablas si no existen."""
+    Base.metadata.create_all(engine)
+    # Migración: si la tabla jobs se acaba de crear pero no tiene columnas correctas
+    with engine.connect() as conn:
+        conn.execute(sa_text("""
+            CREATE TABLE IF NOT EXISTS jobs (
+                id TEXT PRIMARY KEY,
+                original_filename TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                metadata TEXT,
+                error TEXT
+            )
+        """))
+        conn.commit()
 
 
-def create_job(job_id: str, filename: str) -> Job:
+def get_session() -> Session:
+    return Session(engine)
+
+
+def create_job(job_id: str, filename: str) -> dict:
     now = datetime.now(timezone.utc).isoformat()
-    conn = get_db()
-    conn.execute(
-        "INSERT INTO jobs (id, original_filename, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-        (job_id, filename, JobStatus.pending.value, now, now),
+    model = JobModel(
+        id=job_id,
+        original_filename=filename,
+        status=JobStatus.pending.value,
+        created_at=now,
+        updated_at=now,
     )
-    conn.commit()
-    conn.close()
-    return Job(id=job_id, original_filename=filename, status=JobStatus.pending,
-               created_at=now, updated_at=now)
+    with get_session() as session:
+        session.add(model)
+        session.commit()
+    return model.to_dict()
 
 
 def update_job_status(job_id: str, status: str, metadata: dict | None = None, error: str | None = None):
     now = datetime.now(timezone.utc).isoformat()
-    conn = get_db()
-    updates = {"status": status, "updated_at": now}
-    if metadata is not None:
-        updates["metadata"] = json.dumps(metadata)
-    if error is not None:
-        updates["error"] = error
-
-    set_clause = ", ".join(f"{k} = ?" for k in updates)
-    values = list(updates.values()) + [job_id]
-    conn.execute(f"UPDATE jobs SET {set_clause} WHERE id = ?", values)
-    conn.commit()
-    conn.close()
+    with get_session() as session:
+        job = session.query(JobModel).filter(JobModel.id == job_id).first()
+        if job:
+            job.status = status
+            job.updated_at = now
+            if metadata is not None:
+                job.metadata = json.dumps(metadata)
+            if error is not None:
+                job.error = error
+            session.commit()
 
 
-def get_job(job_id: str) -> Job | None:
-    conn = get_db()
-    row = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
-    conn.close()
-    if row is None:
-        return None
-    d = dict(row)
-    d["metadata"] = json.loads(d["metadata"]) if d["metadata"] else None
-    d["status"] = JobStatus(d["status"])
-    return Job(**d)
+def get_job(job_id: str) -> dict | None:
+    with get_session() as session:
+        job = session.query(JobModel).filter(JobModel.id == job_id).first()
+        if job is None:
+            return None
+        return job.to_dict()
 
 
-def list_jobs(limit: int = 50) -> list[Job]:
-    conn = get_db()
-    rows = conn.execute("SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
-    conn.close()
-    jobs = []
-    for row in rows:
-        d = dict(row)
-        d["metadata"] = json.loads(d["metadata"]) if d["metadata"] else None
-        d["status"] = JobStatus(d["status"])
-        jobs.append(Job(**d))
-    return jobs
+def list_jobs(limit: int = 50) -> list[dict]:
+    with get_session() as session:
+        jobs = (
+            session.query(JobModel)
+            .order_by(JobModel.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [j.to_dict() for j in jobs]

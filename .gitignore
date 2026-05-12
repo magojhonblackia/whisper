@@ -26,6 +26,9 @@ frontend/out/
 *.swp
 *.swo
 
+# Docker whisper-db externo
+whisper-db/
+
 # OS
 .DS_Store
 Thumbs.db

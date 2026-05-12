@@ -10,9 +10,11 @@ from app.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: crear directorios
+    # Startup: crear directorios e inicializar DB
     settings.upload_dir.mkdir(parents=True, exist_ok=True)
     settings.audio_dir.mkdir(parents=True, exist_ok=True)
+    from app.models.job import init_db
+    init_db()
     yield
 
 

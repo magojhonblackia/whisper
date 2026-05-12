@@ -3,11 +3,19 @@ Tareas asíncronas con Celery para procesar transcripciones.
 """
 from pathlib import Path
 from celery import Celery
+from celery.signals import worker_ready
 from app.config import settings
 from app.services.audio import extract_audio, get_audio_duration
 from app.services.transcriber import transcribe
 from app.services.diarizer import diarize
 from app.services.aligner import align
+
+
+@worker_ready.connect
+def on_worker_ready(**kwargs):
+    """Inicializa la DB cuando el worker arranca."""
+    from app.models.job import init_db
+    init_db()
 
 celery_app = Celery(
     "transcriber",
