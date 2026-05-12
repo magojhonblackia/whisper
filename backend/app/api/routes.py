@@ -55,7 +55,7 @@ async def upload_video(file: UploadFile = File(...)):
 async def get_jobs():
     """Lista todos los jobs."""
     jobs = list_jobs()
-    return JSONResponse([j.to_dict() for j in jobs])
+    return JSONResponse(jobs)
 
 
 @router.get("/jobs/{job_id}")
@@ -64,4 +64,4 @@ async def get_job_status(job_id: str):
     job = get_job(job_id)
     if job is None:
         raise HTTPException(404, "Job no encontrado")
-    return JSONResponse(job.to_dict())
+    return JSONResponse(job)
