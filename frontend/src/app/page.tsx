@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn, formatBytes } from "@/lib/utils";
+import { uploadFile } from "@/lib/api";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -35,20 +36,7 @@ export default function UploadPage() {
     setError("");
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("http://localhost:8000/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || "Error al subir");
-      }
-
-      const { job_id } = await res.json();
+      const { job_id } = await uploadFile(file);
       router.push(`/job/${job_id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");

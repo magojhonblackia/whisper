@@ -53,6 +53,18 @@ services:
     restart: unless-stopped
     command: celery -A app.tasks.worker worker --loglevel=info --concurrency=1
 
+  # Frontend Next.js
+  frontend:
+    build: ./frontend
+    container_name: whisper-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   pg_whisper:
   whisper_data:

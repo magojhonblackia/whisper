@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { cn, formatTimestamp, statusLabel } from "@/lib/utils";
+import { getJob } from "@/lib/api";
 
 interface Segment {
   start: number;
@@ -36,9 +37,7 @@ export default function JobDetailPage() {
 
   const fetchJob = useCallback(async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/jobs/${jobId}`);
-      if (!res.ok) return;
-      const data = await res.json();
+      const data = await getJob(jobId);
       setJob(data);
 
       const terminal = ["completed", "failed"];
