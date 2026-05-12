@@ -31,14 +31,14 @@ class JobModel(Base):
     status = Column(String, nullable=False, default="pending")
     created_at = Column(String, nullable=False)
     updated_at = Column(String, nullable=False)
-    metadata = Column(Text, nullable=True)
+    job_metadata = Column("metadata", Text, nullable=True)
     error = Column(Text, nullable=True)
 
     def to_dict(self):
         meta = None
-        if self.metadata:
+        if self.job_metadata:
             try:
-                meta = json.loads(self.metadata)
+                meta = json.loads(self.job_metadata)
             except (json.JSONDecodeError, TypeError):
                 meta = None
         return {
@@ -98,7 +98,7 @@ def update_job_status(job_id: str, status: str, metadata: dict | None = None, er
             job.status = status
             job.updated_at = now
             if metadata is not None:
-                job.metadata = json.dumps(metadata)
+                job.job_metadata = json.dumps(metadata)
             if error is not None:
                 job.error = error
             session.commit()
