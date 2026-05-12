@@ -1,4 +1,15 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// En producción, la API está en api-whisper.magoserver.online
+// En local, usamos localhost:8000
+const API_URL = (() => {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    // Si estamos en magoserver.online, la API está en api-whisper.magoserver.online
+    if (host.includes("magoserver.online")) {
+      return "https://api-whisper.magoserver.online";
+    }
+  }
+  return "http://localhost:8000";
+})();
 
 export async function uploadFile(file: File): Promise<{ job_id: string; status: string; original_filename: string }> {
   const formData = new FormData();
