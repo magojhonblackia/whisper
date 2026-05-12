@@ -20,12 +20,12 @@ services:
     build: ./backend
     container_name: whisper-api
     environment:
-      REDIS_URL: redis://redis-container:6379/0
+      REDIS_URL: redis://:EresBueno1%2E@redis-container:6379/0
       DATABASE_URL: postgresql://transcriber:transcriber@postgres:5432/transcriber
       MODEL_SIZE: small
       MODEL_DEVICE: cpu
       MODEL_COMPUTE_TYPE: int8
-      HF_TOKEN: ${HF_TOKEN:-}
+      HF_TOKEN: ${HF_TOKEN:-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}
     ports:
       - "8000:8000"
     volumes:
@@ -44,12 +44,12 @@ services:
     build: ./backend
     container_name: whisper-worker
     environment:
-      REDIS_URL: redis://redis-container:6379/0
+      REDIS_URL: redis://:EresBueno1%2E@redis-container:6379/0
       DATABASE_URL: postgresql://transcriber:transcriber@postgres:5432/transcriber
       MODEL_SIZE: small
       MODEL_DEVICE: cpu
       MODEL_COMPUTE_TYPE: int8
-      HF_TOKEN: ${HF_TOKEN:-}
+      HF_TOKEN: ${HF_TOKEN:-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}
     volumes:
       - whisper_data:/data
       - whisper_models:/root/.cache/huggingface
