@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+/dist/
+/venv/
+/.venv/
+
+# Backend uploads/audio (no subir archivos de usuarios)
+backend/uploads/
+backend/audio/
+backend/app/models/jobs.db
+
+# Env (solo subir .env.example, no .env real)
+.env
+backend/.env
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

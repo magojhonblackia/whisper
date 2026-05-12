@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack --use-npm)",
+      "Bash(npx shadcn@latest init -d --force)",
+      "Bash(npx shadcn@latest add button card input textarea progress scroll-area table toast -y)",
+      "Bash(npx shadcn@4.6.0 add button card input textarea progress scroll-area table toast -y)",
+      "Bash(cd:*)"
+    ]
+  }
+}
