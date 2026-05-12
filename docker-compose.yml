@@ -63,10 +63,11 @@ services:
 
   # Frontend Next.js
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:8000}
     container_name: whisper-frontend
-    environment:
-      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:8000}
     ports:
       - "3001:3000"
     depends_on:
