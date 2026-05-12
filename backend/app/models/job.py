@@ -72,7 +72,7 @@ def init_db():
 
 
 def get_session() -> Session:
-    return Session(engine)
+    return Session(engine, expire_on_commit=False)
 
 
 def create_job(job_id: str, filename: str) -> dict:
@@ -87,7 +87,9 @@ def create_job(job_id: str, filename: str) -> dict:
     with get_session() as session:
         session.add(model)
         session.commit()
-    return model.to_dict()
+        session.refresh(model)
+        result = model.to_dict()
+    return result
 
 
 def update_job_status(job_id: str, status: str, metadata: dict | None = None, error: str | None = None):
