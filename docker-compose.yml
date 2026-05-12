@@ -12,13 +12,15 @@ services:
     volumes:
       - pg_whisper:/var/lib/postgresql/data
     restart: unless-stopped
+    networks:
+      - whisper_net
 
   # API FastAPI
   api:
     build: ./backend
     container_name: whisper-api
     environment:
-      REDIS_URL: redis://host.docker.internal:6379/0
+      REDIS_URL: redis://redis-container:6379/0
       DATABASE_URL: postgresql://transcriber:transcriber@postgres:5432/transcriber
       MODEL_SIZE: small
       MODEL_DEVICE: cpu
@@ -33,13 +35,16 @@ services:
       - postgres
     restart: unless-stopped
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    networks:
+      - whisper_net
+      - redis-stack_default
 
   # Celery worker
   worker:
     build: ./backend
     container_name: whisper-worker
     environment:
-      REDIS_URL: redis://host.docker.internal:6379/0
+      REDIS_URL: redis://redis-container:6379/0
       DATABASE_URL: postgresql://transcriber:transcriber@postgres:5432/transcriber
       MODEL_SIZE: small
       MODEL_DEVICE: cpu
@@ -52,6 +57,9 @@ services:
       - postgres
     restart: unless-stopped
     command: celery -A app.tasks.worker worker --loglevel=info --concurrency=1
+    networks:
+      - whisper_net
+      - redis-stack_default
 
   # Frontend Next.js
   frontend:
@@ -60,10 +68,17 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:8000}
     ports:
-      - "3000:3000"
+      - "3001:3000"
     depends_on:
       - api
     restart: unless-stopped
+    networks:
+      - whisper_net
+
+networks:
+  whisper_net:
+  redis-stack_default:
+    external: true
 
 volumes:
   pg_whisper:
